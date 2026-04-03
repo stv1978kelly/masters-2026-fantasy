@@ -777,31 +777,45 @@ function onKey(e, idx) {
 // ENTRIES
 // ══════════════════════════════════════════════════════════════════
 function addEntry() {
-  const name = document.getElementById('entrantName').value.trim();
-  const tb = document.getElementById('tiebreaker').value.trim();
+  const name  = document.getElementById('entrantName').value.trim();
+  const tb    = document.getElementById('tiebreaker').value.trim();
+  const pin   = document.getElementById('entryPin').value.trim();
   const picks = Array.from({length:N}, (_,i)=>document.getElementById('pi'+(i+1))?.dataset.val||'').filter(Boolean);
-  const msg = document.getElementById('formMsg');
+  const msg   = document.getElementById('formMsg');
+  msg.style.color = '#A32D2D';
 
-  if (!name) { msg.textContent='Please enter your name.'; return; }
+  if (!name)          { msg.textContent='Please enter your name.'; return; }
   if (picks.length<5) { msg.textContent='Please select all 5 players.'; return; }
-  if (!db) { msg.textContent='Firebase not connected — complete setup above first.'; return; }
+  if (!pin || pin.length!==4) { msg.textContent='Please set a 4-digit PIN so you can edit your picks later.'; return; }
+  if (!db)            { msg.textContent='Firebase not connected — complete setup above first.'; return; }
 
-  // Check for duplicate name
-  if (entries.some(e => e.name.toLowerCase()===name.toLowerCase())) {
-    msg.textContent='An entry with that name already exists.'; return;
+  const editingId = document.getElementById('picksGrid').dataset.editingId || null;
+
+  if (editingId) {
+    // Editing — preserve paid status
+    const old = entries.find(e => e._id === editingId);
+    const entry = { name, tb: tb||'?', picks, pin, paid: old ? old.paid : false, _ts: old ? old._ts : Date.now() };
+    db.ref('entries/' + editingId).set(entry)
+      .then(() => { msg.textContent='✅ Entry updated!'; msg.style.color='#3B6D11'; })
+      .catch(e => { msg.textContent='Error: ' + e.message; });
+    delete document.getElementById('picksGrid').dataset.editingId;
+  } else {
+    // New entry — check duplicate
+    if (entries.some(e => e.name.toLowerCase() === name.toLowerCase())) {
+      msg.textContent='An entry with that name already exists.'; return;
+    }
+    const entry = { name, tb: tb||'?', picks, pin, paid: false, _ts: Date.now() };
+    db.ref('entries').push(entry)
+      .then(() => { msg.textContent=''; })
+      .catch(e => { msg.textContent='Error saving: ' + e.message; });
   }
 
-  msg.textContent='';
-  const entry = { name, tb: tb||'?', picks, paid: false, _ts: Date.now() };
-  db.ref('entries').push(entry)
-    .then(()=>{ msg.textContent=''; })
-    .catch(e=>{ msg.textContent='Error saving: '+e.message; });
-
-  document.getElementById('entrantName').value='';
-  document.getElementById('tiebreaker').value='';
+  document.getElementById('entrantName').value = '';
+  document.getElementById('tiebreaker').value  = '';
+  document.getElementById('entryPin').value    = '';
   for (let i=1; i<=N; i++) {
-    const inp=document.getElementById('pi'+i);
-    if(inp){inp.value='';inp.dataset.val='';inp.classList.remove('has-value');}
+    const inp = document.getElementById('pi'+i);
+    if (inp) { inp.value=''; inp.dataset.val=''; inp.classList.remove('has-value'); }
   }
 }
 
