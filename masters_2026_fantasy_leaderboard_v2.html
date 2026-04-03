@@ -188,6 +188,106 @@ td{padding:11px 14px;vertical-align:middle}
 .sync-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#3B6D11;margin-right:5px;vertical-align:middle}
 .sync-status{font-size:11px;color:#3B6D11;margin-top:4px}
 .sync-status.err{color:#A32D2D}
+
+/* ── Portrait mobile ── */
+@media (max-width: 600px) {
+  body{padding:.75rem}
+  .app{padding:.5rem 0 2rem}
+
+  /* Header */
+  .header{flex-direction:column;align-items:flex-start;gap:8px}
+  .header-right{flex-direction:row;align-items:center;gap:8px;width:100%}
+  .title{font-size:21px}
+  .subtitle{font-size:11px}
+  .badge{font-size:9px;padding:2px 7px}
+  .btn-admin{font-size:11px;padding:5px 11px}
+
+  /* Tabs */
+  .tab{padding:8px 12px;font-size:12px}
+
+  /* Form */
+  .form-card{padding:1rem}
+  .form-top{grid-template-columns:1fr !important}
+
+  /* Picks grid: single column on portrait so each box is full width */
+  .picks-grid{
+    grid-template-columns:1fr !important;
+    gap:8px
+  }
+  /* Each pick slot: label and input side by side to save vertical space */
+  .pick-slot{
+    display:flex;
+    align-items:center;
+    gap:10px
+  }
+  .pick-slot label{
+    width:52px;
+    flex-shrink:0;
+    margin-bottom:0;
+    font-size:10px
+  }
+  .pick-slot .psw{flex:1;min-width:0}
+  .psw input{
+    font-size:15px;
+    padding:11px 30px 11px 12px
+  }
+  /* Dropdown: full viewport width, positioned fixed so it's never clipped */
+  .dd{
+    position:fixed;
+    left:1rem;
+    right:1rem;
+    top:auto;
+    max-height:240px;
+    z-index:99999;
+    font-size:15px
+  }
+  .ddi{padding:12px 14px;font-size:15px;line-height:1.2;white-space:normal}
+
+  /* Entry rows: stack cleanly */
+  .entry-row{
+    flex-direction:column;
+    align-items:flex-start;
+    gap:8px;
+    padding:12px
+  }
+  .entry-name{min-width:unset;font-size:15px;width:100%}
+  .entry-picks{width:100%;display:flex;flex-wrap:wrap;gap:5px}
+  .pick-chip{font-size:12px;padding:4px 10px}
+  .entry-meta{width:100%;flex-wrap:wrap;gap:6px;justify-content:flex-start}
+
+  /* Entries header */
+  .entries-header{flex-direction:column;align-items:flex-start;gap:8px}
+  .entries-header .btn-sm{width:100%;text-align:center;padding:9px}
+
+  /* Admin rows */
+  .admin-entry-row{flex-direction:column;align-items:flex-start;gap:8px}
+  .payment-toggle{flex-wrap:wrap;gap:6px}
+
+  /* Leaderboard */
+  thead th,td{padding:7px 6px}
+  .name-cell .nm{font-size:12px}
+  .name-cell .tb-hint{font-size:10px}
+  .agg{font-size:13px}
+  .pchips{gap:3px}
+  .pc{font-size:9px;padding:2px 5px}
+  .pos-cell{width:24px;font-size:11px}
+  .lb-topbar{flex-direction:column;align-items:flex-start;gap:8px}
+  .refresh-group{width:100%}
+
+  /* Modal */
+  .modal-box{width:calc(100vw - 2rem);padding:1.5rem}
+  .modal-title{font-size:18px}
+
+  /* Buttons */
+  .btn{padding:9px 14px;font-size:13px}
+  .btn-primary{padding:11px 18px}
+  .form-actions{flex-direction:column;gap:8px}
+  .form-actions .btn-primary{width:100%;text-align:center}
+
+  /* Hidden notice */
+  .hidden-notice{font-size:12px;padding:8px 10px}
+  .note-bar{font-size:11px}
+}
 </style>
 </head>
 <body>
@@ -733,7 +833,16 @@ function onInput(idx) {
   openDd(idx); populateDd(idx, inp.value);
 }
 function openDd(idx) {
-  document.getElementById('dd'+idx).classList.add('open');
+  const dd = document.getElementById('dd'+idx);
+  dd.classList.add('open');
+  // On mobile portrait anchor dropdown just below the input using fixed top
+  if (window.innerWidth <= 600) {
+    const inp = document.getElementById('pi'+idx);
+    const rect = inp.getBoundingClientRect();
+    dd.style.top = (rect.bottom + 4) + 'px';
+  } else {
+    dd.style.top = '';
+  }
   populateDd(idx, document.getElementById('pi'+idx).value);
 }
 function closeDd(idx) {
