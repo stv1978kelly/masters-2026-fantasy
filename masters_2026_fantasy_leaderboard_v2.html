@@ -211,7 +211,7 @@ td{padding:11px 14px;vertical-align:middle}
 <div class="modal-overlay hidden" id="editModal">
   <div class="modal-box">
     <div class="modal-title">Edit your entry</div>
-    <div class="modal-sub">Enter the 4-digit PIN you set when you submitted</div>
+    <div class="modal-sub" id="editModalSub">Enter the 4-digit PIN you set when you submitted. No PIN set? Enter any 4 digits to create one.</div>
     <input class="modal-input" type="password" id="editPinInput" maxlength="4" placeholder="••••"
       oninput="this.value=this.value.replace(/\D/g,'')"
       onkeydown="if(event.key==='Enter')checkEditPin()">
@@ -356,7 +356,7 @@ td{padding:11px 14px;vertical-align:middle}
 // ══════════════════════════════════════════════════════════════════
 // CONFIG
 // ══════════════════════════════════════════════════════════════════
-const ADMIN_PIN       = '9160';
+const ADMIN_PIN       = '25039160';
 const REVEAL_PASSWORD = 'ROGs25039160!!';
 // Tournament start — picks lock automatically after this
 const TOURNEY_START = new Date('2026-04-10T12:00:00Z'); // Thu 10 Apr 12:00 UTC (~8am ET)
@@ -492,10 +492,10 @@ function openModal(mode) {
   inp.value = '';
   document.getElementById('pinError').textContent = '';
   if (mode === 'admin') {
-    inp.maxLength = 4;
+    inp.maxLength = 20;
     inp.setAttribute('oninput', "this.value=this.value.replace(/\D/g,'')");
     title.textContent = 'Admin access';
-    sub.textContent = 'Enter your 4-digit admin PIN to manage entries and payments';
+    sub.textContent = 'Enter your admin PIN to manage entries and payments';
   } else if (mode === 'reveal') {
     inp.maxLength = 50;
     inp.removeAttribute('oninput');
@@ -568,11 +568,29 @@ function checkEditPin() {
   const val = document.getElementById('editPinInput').value;
   const entry = entries.find(e => e._id === editingEntryId);
   if (!entry) { closeEditModal(); return; }
+  // Admin override — admin PIN always works
+  if (val === ADMIN_PIN) {
+    closeEditModal();
+    loadEntryIntoForm(entry);
+    return;
+  }
+  // Entry has no PIN set (created before PIN feature) — any 4-digit input sets it
+  if (!entry.pin) {
+    if (val.length === 4) {
+      // Set the PIN now and unlock
+      if (db) db.ref('entries/' + entry._id + '/pin').set(val);
+      closeEditModal();
+      loadEntryIntoForm({...entry, pin: val});
+    } else {
+      document.getElementById('editPinError').textContent = 'No PIN was set — enter any 4 digits to set one now.';
+    }
+    return;
+  }
   if (val === String(entry.pin)) {
     closeEditModal();
     loadEntryIntoForm(entry);
   } else {
-    shakeModal('editPinInput','editPinError','Incorrect PIN.');
+    shakeModal('editPinInput','editPinError','Incorrect PIN. (Admin can use admin PIN to override.)');
   }
 }
 function loadEntryIntoForm(entry) {
@@ -613,7 +631,12 @@ function renderAdminList() {
   }
   el.innerHTML = entries.map(e => `
     <div class="admin-entry-row ${e.paid?'':'unpaid-row'}">
-      <div class="admin-name ${e.paid?'':'red'}">${e.name}</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0">
+        <div class="admin-name ${e.paid?'':'red'}">${e.name}</div>
+        <span style="font-size:10px;color:${e.pin?'#3B6D11':'#A32D2D'};background:${e.pin?'#EAF3DE':'#FCEBEB'};border:1px solid ${e.pin?'#97C459':'#F09595'};border-radius:20px;padding:1px 7px;font-weight:600">
+          ${e.pin ? 'PIN set' : '⚠ No PIN'}
+        </span>
+      </div>
       <div class="payment-toggle">
         <span class="toggle-label">Unpaid</span>
         <label class="toggle">
@@ -622,9 +645,18 @@ function renderAdminList() {
         </label>
         <span class="toggle-label">Paid</span>
         <span class="admin-paid-label ${e.paid?'paid':'unpaid'}">${e.paid?'✓ Paid':'✗ Unpaid'}</span>
+        <button class="btn btn-sm" onclick="adminEditEntry('${e._id}')" style="background:#1a1a1a;color:#fff;border-color:#1a1a1a">Edit</button>
         <button class="btn btn-sm btn-danger" onclick="removeEntry('${e._id}')">Remove</button>
       </div>
     </div>`).join('');
+}
+
+function adminEditEntry(id) {
+  const entry = entries.find(e => e._id === id);
+  if (!entry) return;
+  loadEntryIntoForm(entry);
+  // Hide admin panel and scroll to form
+  document.getElementById('adminPanel').classList.add('hidden');
 }
 
 // ══════════════════════════════════════════════════════════════════
