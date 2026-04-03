@@ -234,7 +234,7 @@ td{padding:11px 14px;vertical-align:middle}
     <strong>Steps (5 minutes):</strong><br>
     1. Go to <strong>console.firebase.google.com</strong> → click <strong>Add project</strong> → name it <em>masters2026</em> → Continue through the steps<br>
     2. In your project: click <strong>Build → Realtime Database → Create database</strong> → choose <em>Start in test mode</em> → Enable<br>
-    3. You'll see a URL like <code>https://masters2026-xxxxx-default-rtdb.firebaseio.com</code> — copy it<br>
+    3. You'll see a URL like <code>https://masters2026-xxxxx-default-rtdb.europe-west1.firebasedatabase.app</code> — copy it<br>
     4. Paste it below and click Save:<br>
     <div class="setup-form">
       <input class="setup-input" id="fbUrlInput" placeholder="https://your-project-default-rtdb.firebaseio.com" type="url">
@@ -390,8 +390,8 @@ function picksVisible() {
 // ══════════════════════════════════════════════════════════════════
 function saveFirebaseConfig() {
   const url = document.getElementById('fbUrlInput').value.trim().replace(/\/$/, '');
-  if (!url.startsWith('https://') || !url.includes('firebaseio.com')) {
-    alert('Please paste a valid Firebase Realtime Database URL (starts with https://, ends with .firebaseio.com)');
+  if (!url.startsWith('https://') || (!url.includes('firebaseio.com') && !url.includes('firebasedatabase.app'))) {
+    alert('Please paste a valid Firebase Realtime Database URL (e.g. https://your-project-default-rtdb.firebasedatabase.app)');
     return;
   }
   localStorage.setItem('masters2026_fburl', url);
