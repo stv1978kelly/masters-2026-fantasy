@@ -992,13 +992,10 @@ function startCd(){
 // ══════════════════════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════════════════════
-const savedUrl = localStorage.getItem('masters2026_fburl');
-if (savedUrl) {
-  document.getElementById('fbUrlInput').value = savedUrl;
-  initFirebase(savedUrl);
-} else {
-  setSyncStatus('Firebase not connected', true);
-}
+// Firebase URL hardcoded — works on every device, no setup needed
+const FIREBASE_URL = 'https://masters2026-b91e6-default-rtdb.europe-west1.firebasedatabase.app';
+document.getElementById('configBanner').classList.add('hidden');
+initFirebase(FIREBASE_URL);
 buildPicks();
 renderEntries();
 </script>
