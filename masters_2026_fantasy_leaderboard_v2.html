@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Masters 2026 · Fantasy Leaderboard</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Source+Sans+3:wght@400;500;600&family=Source+Code+Pro:wght@400;500&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#fff;color:#1a1a1a;font-family:'Source Sans 3',sans-serif;padding:1.5rem}
+.app{max-width:980px;margin:0 auto;padding:1rem 0 3rem}
+
+/* ── Header ── */
+.header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:10px;padding-bottom:1.25rem;border-bottom:1px solid #e8e8e8}
+.title{font-family:'Playfair Display',serif;font-size:26px;letter-spacing:-0.3px}
+.title span{color:#3B6D11}
+.subtitle{font-size:12px;color:#777;margin-top:4px;text-transform:uppercase;letter-spacing:.06em}
+.badge-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px}
+.badge{font-size:10px;padding:3px 9px;border-radius:20px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.badge-green{background:#EAF3DE;color:#3B6D11;border:1px solid #c0dd97}
+.badge-gold{background:#FAEEDA;color:#854F0B;border:1px solid #FAC775}
+.admin-btn-wrap{display:flex;align-items:flex-start;gap:8px;flex-direction:column}
+.admin-status{font-size:11px;color:#3B6D11;font-weight:500}
+
+/* ── Tabs ── */
+.tabs{display:flex;gap:0;margin-bottom:1.5rem;border-bottom:2px solid #e8e8e8}
+.tab{font-size:13px;font-weight:500;padding:9px 18px;cursor:pointer;color:#888;border:none;background:none;border-bottom:2px solid transparent;margin-bottom:-2px;transition:color .15s,border-color .15s}
+.tab.active{color:#3B6D11;border-bottom-color:#3B6D11}
+.tab:hover{color:#1a1a1a}
+.panel{display:none}.panel.active{display:block}
+
+/* ── Forms ── */
+.form-card{background:#fafafa;border:1px solid #e8e8e8;border-radius:12px;padding:1.5rem;margin-bottom:1.25rem}
+.form-section-title{font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.08em;margin-bottom:1rem}
+.form-top{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1.25rem}
+.field-group label{font-size:11px;font-weight:600;color:#666;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px}
+.field-group input{width:100%;font-family:'Source Sans 3',sans-serif;font-size:14px;padding:9px 12px;border:1px solid #d0d0d0;border-radius:8px;background:#fff;color:#1a1a1a;outline:none;transition:border .15s,box-shadow .15s}
+.field-group input:focus{border-color:#3B6D11;box-shadow:0 0 0 3px rgba(59,109,17,.1)}
+
+/* ── Pick dropdowns ── */
+.picks-label{font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem}
+.picks-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:1.25rem}
+.pick-slot label{font-size:10px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px}
+.psw{position:relative}
+.psw input{width:100%;font-family:'Source Sans 3',sans-serif;font-size:13px;padding:8px 26px 8px 10px;border:1px solid #d0d0d0;border-radius:8px;background:#fff;color:#1a1a1a;outline:none;transition:border .15s,box-shadow .15s}
+.psw input:focus{border-color:#3B6D11;box-shadow:0 0 0 3px rgba(59,109,17,.1)}
+.psw input.has-value{background:#EAF3DE;color:#3B6D11;border-color:#97C459;font-weight:500}
+.psw .caret{position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:#bbb;font-size:9px}
+.dd{position:absolute;top:calc(100% + 3px);left:0;right:0;background:#fff;border:1px solid #d0d0d0;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);z-index:9999;max-height:220px;overflow-y:auto;display:none}
+.dd.open{display:block}
+.ddi{padding:8px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid #f5f5f5;color:#1a1a1a;transition:background .08s}
+.ddi:last-child{border-bottom:none}
+.ddi:hover,.ddi.hi{background:#EAF3DE;color:#3B6D11}
+.ddi.sel{font-weight:600;color:#3B6D11;background:#f0f8ea}
+.ddi.add-custom{color:#3B6D11;font-style:italic;background:#f0f8ea;border-top:1px solid #e0e0e0}
+.ddi.add-custom:hover{background:#EAF3DE}
+.dd-empty{padding:9px 12px;font-size:12px;color:#bbb;font-style:italic}
+
+/* ── Buttons ── */
+.btn{font-family:'Source Sans 3',sans-serif;font-size:13px;font-weight:500;padding:9px 18px;border-radius:8px;cursor:pointer;border:1px solid #ccc;background:#fff;color:#1a1a1a;transition:background .15s}
+.btn:hover{background:#f5f5f5}
+.btn-primary{background:#3B6D11;color:#fff;border-color:#3B6D11}
+.btn-primary:hover{background:#27500A}
+.btn-sm{font-size:11px;padding:5px 12px}
+.btn-danger{color:#A32D2D;border-color:#e0e0e0}
+.btn-danger:hover{background:#FCEBEB;border-color:#F09595}
+.btn-admin{background:#1a1a1a;color:#fff;border-color:#1a1a1a;font-size:11px;padding:5px 12px}
+.btn-admin:hover{background:#333}
+.form-msg{font-size:12px;color:#A32D2D}
+.form-actions{display:flex;gap:10px;align-items:center}
+
+/* ── Entries list ── */
+.entries-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem}
+.entries-count{font-size:12px;color:#888;font-weight:500}
+.entries-list{display:flex;flex-direction:column;gap:8px}
+.entry-row{background:#fafafa;border:1px solid #e8e8e8;border-radius:10px;padding:12px 16px;display:flex;align-items:center;flex-wrap:wrap;gap:10px;transition:border-color .2s,background .2s}
+.entry-row.unpaid{background:#fff5f5;border-color:#F09595}
+.entry-row.unpaid .entry-name{color:#A32D2D}
+.entry-name{font-weight:600;font-size:14px;min-width:130px}
+.entry-picks{display:flex;flex-wrap:wrap;gap:5px;flex:1}
+.pick-chip{font-size:11px;padding:3px 9px;background:#fff;border:1px solid #e0e0e0;border-radius:20px;color:#555}
+.entry-row.unpaid .pick-chip{border-color:#F09595;color:#A32D2D;background:#fff}
+.entry-meta{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.entry-tb{font-size:11px;color:#aaa;font-family:'Source Code Pro',monospace}
+.paid-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.05em}
+.paid-badge.paid{background:#EAF3DE;color:#3B6D11;border:1px solid #97C459}
+.paid-badge.unpaid{background:#FCEBEB;color:#A32D2D;border:1px solid #F09595}
+.no-entries{padding:2.5rem;text-align:center;color:#bbb;font-size:13px;border:1px dashed #e0e0e0;border-radius:10px}
+
+/* ── Admin panel ── */
+.admin-panel{background:#fafafa;border:1px solid #e8e8e8;border-radius:12px;padding:1.25rem;margin-bottom:1.25rem}
+.admin-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.admin-title{font-size:12px;font-weight:600;color:#1a1a1a;text-transform:uppercase;letter-spacing:.07em}
+.admin-subtitle{font-size:11px;color:#999;margin-top:2px}
+.admin-logout{font-size:11px;color:#888;cursor:pointer;text-decoration:underline}
+.admin-list{display:flex;flex-direction:column;gap:6px}
+.admin-entry-row{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:#fff;border:1px solid #ebebeb;border-radius:8px;flex-wrap:wrap;gap:8px}
+.admin-entry-row.unpaid-row{border-color:#F09595;background:#fff8f8}
+.admin-name{font-size:13px;font-weight:500}
+.admin-name.red{color:#A32D2D}
+.payment-toggle{display:flex;align-items:center;gap:6px}
+.toggle-label{font-size:11px;color:#888}
+.toggle{position:relative;width:40px;height:22px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#e0e0e0;border-radius:22px;transition:.2s}
+.slider:before{position:absolute;content:"";height:16px;width:16px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s}
+input:checked+.slider{background:#3B6D11}
+input:checked+.slider:before{transform:translateX(18px)}
+.admin-paid-label{font-size:11px;font-weight:600;min-width:44px}
+.admin-paid-label.paid{color:#3B6D11}
+.admin-paid-label.unpaid{color:#A32D2D}
+
+/* ── PIN modal ── */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:10000}
+.modal-overlay.hidden{display:none}
+.modal-box{background:#fff;border-radius:14px;padding:2rem;width:320px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal-title{font-family:'Playfair Display',serif;font-size:20px;margin-bottom:.5rem}
+.modal-sub{font-size:12px;color:#888;margin-bottom:1.25rem}
+.modal-input{width:100%;font-family:'Source Code Pro',monospace;font-size:22px;letter-spacing:.2em;text-align:center;padding:12px;border:1px solid #d0d0d0;border-radius:8px;outline:none;color:#1a1a1a;transition:border .15s}
+.modal-input:focus{border-color:#3B6D11;box-shadow:0 0 0 3px rgba(59,109,17,.1)}
+.modal-input.shake{animation:shake .35s}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+.modal-error{font-size:12px;color:#A32D2D;margin-top:8px;min-height:18px;text-align:center}
+.modal-actions{display:flex;gap:8px;margin-top:1.25rem}
+.modal-actions .btn{flex:1}
+
+/* ── Leaderboard ── */
+.lb-topbar{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px}
+.lb-live{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;background:#FCEBEB;color:#A32D2D;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+.live-dot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:blink 1.4s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.last-updated{font-size:11px;color:#bbb;margin-top:3px}
+.err-note{font-size:11px;color:#A32D2D;margin-top:3px}
+.refresh-group{display:flex;align-items:center;gap:8px}
+.countdown{font-size:11px;color:#ccc;font-family:'Source Code Pro',monospace}
+.table-wrap{border:1px solid #e8e8e8;border-radius:12px;overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead tr{background:#f5f5f5}
+thead th{padding:9px 14px;font-size:10px;font-weight:600;color:#999;text-align:left;letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid #e8e8e8}
+th.r,td.r{text-align:right}
+tbody tr{border-bottom:1px solid #f2f2f2;transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:#fafafa}
+tbody tr.rank-1 td:first-child{border-left:3px solid #BA7517}
+tbody tr.rank-2 td:first-child{border-left:3px solid #888780}
+tbody tr.row-unpaid{background:#fff5f5}
+tbody tr.row-unpaid:hover{background:#ffe8e8}
+tbody tr.row-unpaid td.name-cell .nm{color:#A32D2D}
+td{padding:11px 14px;vertical-align:middle}
+.pos-cell{font-family:'Source Code Pro',monospace;font-size:12px;font-weight:500;color:#ccc;width:36px}
+.pos-1{color:#BA7517!important}
+.pos-2{color:#888780!important}
+.name-cell .nm{font-weight:600;font-size:14px}
+.name-cell .tb-hint{font-size:10px;color:#ccc;font-family:'Source Code Pro',monospace;margin-top:2px}
+.name-cell .unpaid-flag{font-size:9px;font-weight:600;color:#A32D2D;text-transform:uppercase;letter-spacing:.06em;margin-left:6px;padding:1px 5px;background:#FCEBEB;border-radius:3px;border:1px solid #F09595;vertical-align:middle}
+.agg{font-family:'Source Code Pro',monospace;font-size:16px;font-weight:500}
+.agg-gold{color:#BA7517}
+.agg-silver{color:#888780}
+.agg-pending{color:#ddd;font-size:13px;font-family:'Source Code Pro',monospace}
+.pchips{display:flex;flex-wrap:wrap;gap:4px}
+.pc{font-size:10px;padding:2px 7px;border-radius:4px;font-family:'Source Code Pro',monospace;border:1px solid #ebebeb;color:#aaa;background:#fafafa;white-space:nowrap}
+.pc.ok{background:#EAF3DE;color:#3B6D11;border-color:#97C459;font-weight:500}
+.pc.mc{color:#ccc;text-decoration:line-through}
+.pc.wd{color:#A32D2D;border-color:#F09595;background:#FCEBEB}
+.pc.unk{color:#ddd;font-style:italic}
+.spinner{width:14px;height:14px;border:2px solid #e0e0e0;border-top-color:#888;border-radius:50%;animation:spin .8s linear infinite;display:inline-block;vertical-align:middle;margin-right:4px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty-lb{padding:3rem;text-align:center;color:#bbb;font-size:13px}
+.note-bar{margin-top:10px;font-size:11px;color:#ccc;line-height:1.7}
+</style>
+</head>
+<body>
+
+<!-- PIN Modal -->
+<div class="modal-overlay hidden" id="pinModal">
+  <div class="modal-box">
+    <div class="modal-title">Admin access</div>
+    <div class="modal-sub">Enter your PIN to manage payment status</div>
+    <input class="modal-input" type="password" id="pinInput" maxlength="4" placeholder="••••"
+      oninput="this.value=this.value.replace(/\D/g,'')"
+      onkeydown="if(event.key==='Enter')checkPin()">
+    <div class="modal-error" id="pinError"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="checkPin()">Enter</button>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="title">The <span>Masters</span> 2026</div>
+      <div class="subtitle">Augusta National Golf Club · April 10–13, 2026</div>
+      <div class="badge-row">
+        <span class="badge badge-green">Best 4 of 5 picks</span>
+        <span class="badge badge-gold">Lowest aggregate wins</span>
+        <span class="badge badge-green">£5 per entry</span>
+      </div>
+    </div>
+    <div class="admin-btn-wrap">
+      <button class="btn btn-admin" id="adminToggleBtn" onclick="adminAction()">🔒 Admin</button>
+      <div class="admin-status hidden" id="adminStatus">Admin mode active</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('entries',this)">Entries</button>
+    <button class="tab" onclick="showTab('leaderboard',this)">Leaderboard</button>
+  </div>
+
+  <!-- ══ ENTRIES TAB ══ -->
+  <div class="panel active" id="tab-entries">
+
+    <!-- Admin payment panel (hidden until logged in) -->
+    <div class="admin-panel hidden" id="adminPanel">
+      <div class="admin-header">
+        <div>
+          <div class="admin-title">Payment status</div>
+          <div class="admin-subtitle">Toggle to mark entries as paid or unpaid</div>
+        </div>
+        <span class="admin-logout" onclick="logoutAdmin()">Log out</span>
+      </div>
+      <div class="admin-list" id="adminList"></div>
+    </div>
+
+    <!-- Add entry form -->
+    <div class="form-card">
+      <div class="form-section-title">Add new entry</div>
+      <div class="form-top">
+        <div class="field-group"><label>Entrant name</label><input type="text" id="entrantName" placeholder="e.g. John Smith" autocomplete="off"></div>
+        <div class="field-group"><label>Tiebreaker (winning score)</label><input type="number" id="tiebreaker" placeholder="e.g. -10"></div>
+      </div>
+      <div class="picks-label">5 player picks — type to search or scroll · can't find someone? type their name and add them</div>
+      <div class="picks-grid" id="picksGrid"></div>
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="addEntry()">Add entry</button>
+        <span class="form-msg" id="formMsg"></span>
+      </div>
+    </div>
+
+    <div class="entries-header">
+      <div class="entries-count" id="entriesCount"></div>
+      <button class="btn btn-sm" onclick="showTab('leaderboard',document.querySelectorAll('.tab')[1])">View leaderboard →</button>
+    </div>
+    <div id="entriesList"><div class="no-entries">No entries yet. Add the first one above.</div></div>
+  </div>
+
+  <!-- ══ LEADERBOARD TAB ══ -->
+  <div class="panel" id="tab-leaderboard">
+    <div class="lb-topbar">
+      <div>
+        <div class="lb-live"><span class="live-dot"></span>Live — Masters Tournament</div>
+        <div class="last-updated" id="lastUpdated">Scores not yet fetched — click Refresh when tournament begins Thu 10 Apr</div>
+        <div class="err-note" id="errNote"></div>
+      </div>
+      <div class="refresh-group">
+        <span class="countdown" id="countdown"></span>
+        <button class="btn btn-sm" id="refreshBtn" onclick="fetchScores()">↻ Refresh scores</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Pos</th>
+          <th>Entry</th>
+          <th class="r" style="width:100px">Aggregate</th>
+          <th>Player positions (green = counted in best 4)</th>
+        </tr></thead>
+        <tbody id="lbBody">
+          <tr><td colspan="4" class="empty-lb">Add entries then click ↻ Refresh scores once the tournament begins.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note-bar">
+      Positions = current/final leaderboard position. Green chip = counts towards aggregate. Strikethrough = missed cut (pos 60). Lowest aggregate wins. Tiebreaker = closest predicted winning score. Red rows = payment not confirmed.
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════════════════════════════
+const ADMIN_PIN = '9160';
+
+const FIELD_BASE = [
+  "Ludvig Åberg","Daniel Berger","Akshay Bhatia","Keegan Bradley","Michael Brennan",
+  "Jacob Bridgeman","Sam Burns","Ángel Cabrera","Brian Campbell","Patrick Cantlay",
+  "Wyndham Clark","Corey Conners","Fred Couples","Jason Day","Bryson DeChambeau",
+  "Nicolas Echavarria","Harris English","Ethan Fang","Matt Fitzpatrick","Tommy Fleetwood",
+  "Ryan Fox","Sergio Garcia","Ryan Gerard","Chris Gotterup","Max Greyserman",
+  "Ben Griffin","Harry Hall","Brian Harman","Tyrrell Hatton","Russell Henley",
+  "Jackson Herrington","Nicolai Højgaard","Rasmus Højgaard","Brandon Holtz","Max Homa",
+  "Viktor Hovland","Mason Howell","Sungjae Im","Casey Jarvis","Dustin Johnson",
+  "Zach Johnson","Naoyuki Kataoka","John Keefer","Si Woo Kim","Michael Kim",
+  "Kurt Kitayama","Brooks Koepka","Fifa Laopakdee","Min Woo Lee","Haotong Li",
+  "Shane Lowry","Robert MacIntyre","Hideki Matsuyama","Matt McCarty","Rory McIlroy",
+  "Tom McKibbin","Maverick McNealy","Phil Mickelson","Collin Morikawa",
+  "Rasmus Neergaard-Petersen","Alex Noren","Andrew Novak","Jose Maria Olazabal",
+  "Carlos Ortiz","Marco Penge","Aldrich Potgieter","Mateo Pulcini","Jon Rahm",
+  "Aaron Rai","Patrick Reed","Kristoffer Reitan","Davis Riley","Justin Rose",
+  "Xander Schauffele","Scottie Scheffler","Charl Schwartzel","Adam Scott","Vijay Singh",
+  "Cameron Smith","J.J. Spaun","Jordan Spieth","Sam Stevens","Sepp Straka",
+  "Nick Taylor","Justin Thomas","Sami Valimaki","Bubba Watson","Mike Weir",
+  "Danny Willett","Gary Woodland","Cameron Young"
+];
+
+// Custom players added at runtime — persisted here so they show in all dropdowns
+let customPlayers = [];
+
+function getField() {
+  const all = [...FIELD_BASE, ...customPlayers];
+  return all.sort((a,b)=>{
+    const sa=a.split(' ').pop().replace(/[^a-zA-Z]/g,'').toLowerCase();
+    const sb=b.split(' ').pop().replace(/[^a-zA-Z]/g,'').toLowerCase();
+    return sa.localeCompare(sb);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════════
+let entries = [];          // [{name, tb, picks:[], paid:true}]
+let playerPositions = {};
+let cdTimer = null, cdCount = 60;
+let adminLoggedIn = false;
+const N = 5;
+
+// ══════════════════════════════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════════════════════════════
+function showTab(t, btn) {
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (t === 'leaderboard') renderLeaderboard();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ADMIN / PIN
+// ══════════════════════════════════════════════════════════════════
+function adminAction() {
+  if (adminLoggedIn) {
+    toggleAdminPanel();
+  } else {
+    openModal();
+  }
+}
+function openModal() {
+  document.getElementById('pinInput').value = '';
+  document.getElementById('pinError').textContent = '';
+  document.getElementById('pinModal').classList.remove('hidden');
+  setTimeout(()=>document.getElementById('pinInput').focus(), 100);
+}
+function closeModal() {
+  document.getElementById('pinModal').classList.add('hidden');
+}
+function checkPin() {
+  const val = document.getElementById('pinInput').value;
+  if (val === ADMIN_PIN) {
+    closeModal();
+    adminLoggedIn = true;
+    document.getElementById('adminToggleBtn').textContent = '🔓 Admin';
+    document.getElementById('adminStatus').classList.remove('hidden');
+    document.getElementById('adminPanel').classList.remove('hidden');
+    renderAdminList();
+  } else {
+    const inp = document.getElementById('pinInput');
+    inp.classList.add('shake');
+    document.getElementById('pinError').textContent = 'Incorrect PIN. Try again.';
+    inp.value = '';
+    setTimeout(()=>inp.classList.remove('shake'), 400);
+  }
+}
+function toggleAdminPanel() {
+  const panel = document.getElementById('adminPanel');
+  panel.classList.toggle('hidden');
+}
+function logoutAdmin() {
+  adminLoggedIn = false;
+  document.getElementById('adminToggleBtn').textContent = '🔒 Admin';
+  document.getElementById('adminStatus').classList.add('hidden');
+  document.getElementById('adminPanel').classList.add('hidden');
+}
+function togglePaid(idx) {
+  entries[idx].paid = !entries[idx].paid;
+  renderAdminList();
+  renderEntries();
+  renderLeaderboard();
+}
+function renderAdminList() {
+  const el = document.getElementById('adminList');
+  if (!entries.length) {
+    el.innerHTML = '<div style="font-size:13px;color:#bbb;padding:.5rem">No entries yet.</div>';
+    return;
+  }
+  el.innerHTML = entries.map((e,i) => `
+    <div class="admin-entry-row ${e.paid?'':'unpaid-row'}">
+      <div class="admin-name ${e.paid?'':'red'}">${e.name}</div>
+      <div class="payment-toggle">
+        <span class="toggle-label">Unpaid</span>
+        <label class="toggle">
+          <input type="checkbox" ${e.paid?'checked':''} onchange="togglePaid(${i})">
+          <span class="slider"></span>
+        </label>
+        <span class="toggle-label">Paid</span>
+        <span class="admin-paid-label ${e.paid?'paid':'unpaid'}">${e.paid?'✓ Paid':'✗ Unpaid'}</span>
+      </div>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SEARCHABLE PICK DROPDOWNS
+// ══════════════════════════════════════════════════════════════════
+function buildPicks() {
+  const g = document.getElementById('picksGrid');
+  g.innerHTML = '';
+  for (let i=1; i<=N; i++) {
+    const d = document.createElement('div');
+    d.className = 'pick-slot';
+    d.innerHTML = `<label>Pick ${i}</label>
+    <div class="psw" id="psw${i}">
+      <input type="text" id="pi${i}" placeholder="Type to search…" autocomplete="off"
+        oninput="onInput(${i})" onfocus="onFocus(${i})" onkeydown="onKey(event,${i})">
+      <span class="caret">▾</span>
+      <div class="dd" id="dd${i}"></div>
+    </div>`;
+    g.appendChild(d);
+  }
+  document.addEventListener('mousedown', e => {
+    for (let i=1; i<=N; i++) {
+      const w = document.getElementById('psw'+i);
+      if (w && !w.contains(e.target)) closeDd(i);
+    }
+  });
+}
+
+function usedByOthers(skip) {
+  const used = new Set();
+  for (let i=1; i<=N; i++) {
+    if (i===skip) continue;
+    const v = document.getElementById('pi'+i)?.dataset.val||'';
+    if (v) used.add(v);
+  }
+  return used;
+}
+
+function populateDd(idx, filter) {
+  const dd = document.getElementById('dd'+idx);
+  const cur = document.getElementById('pi'+idx)?.dataset.val||'';
+  const blocked = usedByOthers(idx);
+  const f = filter.trim();
+  const fl = f.toLowerCase();
+  const hits = getField().filter(p => !blocked.has(p) && (!f || p.toLowerCase().includes(fl)));
+
+  let html = hits.map(p => {
+    const hi = p===cur ? ' sel' : '';
+    const label = f ? p.replace(new RegExp('('+f.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),'<strong>$1</strong>') : p;
+    return `<div class="ddi${hi}" data-n="${p.replace(/"/g,'&quot;')}" onmousedown="pickPlayer(${idx},this)">${label}</div>`;
+  }).join('');
+
+  // "Add as custom player" option — shown when there's typed text that doesn't exactly match any field player
+  if (f && !getField().some(p => p.toLowerCase() === fl) && !blocked.has(f)) {
+    html += `<div class="ddi add-custom" data-n="${f.replace(/"/g,'&quot;')}" onmousedown="addCustomAndPick(${idx},'${f.replace(/'/g,"\\'")}')">+ Add "${f}" as custom player</div>`;
+  }
+
+  if (!html) {
+    html = f ? `<div class="ddi add-custom" data-n="${f.replace(/"/g,'&quot;')}" onmousedown="addCustomAndPick(${idx},'${f.replace(/'/g,"\\'")}')">+ Add "${f}" as custom player</div>`
+             : '<div class="dd-empty">Start typing to search…</div>';
+  }
+
+  dd.innerHTML = html;
+}
+
+function addCustomAndPick(idx, name) {
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  if (!FIELD_BASE.includes(trimmed) && !customPlayers.includes(trimmed)) {
+    customPlayers.push(trimmed);
+  }
+  setPlayer(idx, trimmed);
+}
+
+function onFocus(idx) { openDd(idx); }
+function onInput(idx) {
+  const inp = document.getElementById('pi'+idx);
+  inp.dataset.val = '';
+  inp.classList.remove('has-value');
+  openDd(idx);
+  populateDd(idx, inp.value);
+}
+function openDd(idx) {
+  document.getElementById('dd'+idx).classList.add('open');
+  populateDd(idx, document.getElementById('pi'+idx).value);
+}
+function closeDd(idx) {
+  const dd = document.getElementById('dd'+idx);
+  dd.classList.remove('open');
+  const inp = document.getElementById('pi'+idx);
+  if (inp && !inp.dataset.val) {
+    const exact = getField().find(p => p.toLowerCase() === inp.value.toLowerCase());
+    if (exact) setPlayer(idx, exact);
+    else { inp.value = ''; inp.classList.remove('has-value'); }
+  }
+}
+function pickPlayer(idx, el) {
+  el.preventDefault && el.preventDefault();
+  setPlayer(idx, el.dataset.n);
+}
+function setPlayer(idx, name) {
+  const inp = document.getElementById('pi'+idx);
+  inp.value = name; inp.dataset.val = name;
+  inp.classList.add('has-value');
+  document.getElementById('dd'+idx).classList.remove('open');
+  for (let i=1; i<=N; i++) {
+    if (i!==idx && document.getElementById('dd'+i).classList.contains('open'))
+      populateDd(i, document.getElementById('pi'+i).value);
+  }
+}
+function onKey(e, idx) {
+  const dd = document.getElementById('dd'+idx);
+  const items = [...dd.querySelectorAll('.ddi')];
+  const hi = dd.querySelector('.hi');
+  const hiIdx = hi ? items.indexOf(hi) : -1;
+  if (e.key==='ArrowDown') {
+    e.preventDefault();
+    if (hi) hi.classList.remove('hi');
+    const next = items[hiIdx+1] || items[0];
+    if (next) next.classList.add('hi');
+  } else if (e.key==='ArrowUp') {
+    e.preventDefault();
+    if (hi) hi.classList.remove('hi');
+    const prev = items[hiIdx-1] || items[items.length-1];
+    if (prev) prev.classList.add('hi');
+  } else if (e.key==='Enter') {
+    e.preventDefault();
+    const target = dd.querySelector('.hi') || items[0];
+    if (target) {
+      if (target.classList.contains('add-custom')) addCustomAndPick(idx, target.dataset.n);
+      else setPlayer(idx, target.dataset.n);
+    }
+  } else if (e.key==='Escape') {
+    closeDd(idx);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ENTRIES
+// ══════════════════════════════════════════════════════════════════
+function addEntry() {
+  const name = document.getElementById('entrantName').value.trim();
+  const tb = document.getElementById('tiebreaker').value.trim();
+  const picks = Array.from({length:N}, (_,i) => document.getElementById('pi'+(i+1))?.dataset.val||'').filter(Boolean);
+  const msg = document.getElementById('formMsg');
+  if (!name) { msg.textContent = 'Please enter an entrant name.'; return; }
+  if (picks.length < 5) { msg.textContent = 'Please select all 5 players.'; return; }
+  msg.textContent = '';
+  entries.push({ name, tb: tb||'?', picks, paid: false });
+  document.getElementById('entrantName').value = '';
+  document.getElementById('tiebreaker').value = '';
+  for (let i=1; i<=N; i++) {
+    const inp = document.getElementById('pi'+i);
+    if (inp) { inp.value=''; inp.dataset.val=''; inp.classList.remove('has-value'); }
+  }
+  renderEntries();
+  if (adminLoggedIn) renderAdminList();
+}
+
+function removeEntry(i) {
+  entries.splice(i, 1);
+  renderEntries();
+  if (adminLoggedIn) renderAdminList();
+}
+
+function renderEntries() {
+  const el = document.getElementById('entriesList');
+  const ce = document.getElementById('entriesCount');
+  ce.textContent = entries.length ? `${entries.length} entr${entries.length===1?'y':'ies'}` : '';
+  if (!entries.length) {
+    el.innerHTML = '<div class="no-entries">No entries yet. Add the first one above.</div>';
+    return;
+  }
+  el.innerHTML = entries.map((e,i) => `
+    <div class="entry-row ${e.paid?'':'unpaid'}">
+      <div class="entry-name">${e.name}</div>
+      <div class="entry-picks">${e.picks.map(p=>`<span class="pick-chip">${p}</span>`).join('')}</div>
+      <div class="entry-meta">
+        <span class="entry-tb">TB: ${e.tb}</span>
+        <span class="paid-badge ${e.paid?'paid':'unpaid'}">${e.paid?'Paid':'Unpaid'}</span>
+        <button class="btn btn-sm btn-danger" onclick="removeEntry(${i})">Remove</button>
+      </div>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SCORING
+// ══════════════════════════════════════════════════════════════════
+function norm(n) { return n.toLowerCase().replace(/[^a-z\s]/g,'').replace(/\s+/g,' ').trim(); }
+function getPos(pick) {
+  for (const [k,v] of Object.entries(playerPositions)) if (norm(k)===norm(pick)) return v;
+  const ln = norm(pick).split(' ').pop();
+  for (const [k,v] of Object.entries(playerPositions)) if (norm(k).split(' ').pop()===ln) return v;
+  return null;
+}
+function computeEntry(e) {
+  const scored = e.picks.map(p => ({ name:p, pos:getPos(p) }));
+  const known = scored.filter(s=>s.pos!==null).map(s=>s.pos).sort((a,b)=>a-b);
+  const best4 = known.slice(0,4);
+  const aggregate = best4.length===4 ? best4.reduce((a,b)=>a+b,0) : null;
+  return { scored, best4:[...best4], aggregate };
+}
+
+function renderLeaderboard() {
+  const body = document.getElementById('lbBody');
+  if (!entries.length) {
+    body.innerHTML = '<tr><td colspan="4" class="empty-lb">Add entries in the Entries tab first.</td></tr>';
+    return;
+  }
+  const comp = entries.map(e => ({...e, ...computeEntry(e)}));
+  const withA = comp.filter(e=>e.aggregate!==null).sort((a,b)=>{
+    if (a.aggregate!==b.aggregate) return a.aggregate-b.aggregate;
+    const ta=parseInt(a.tb), tb=parseInt(b.tb);
+    if (!isNaN(ta)&&!isNaN(tb)) return Math.abs(ta)-Math.abs(tb);
+    return 0;
+  });
+  const noA = comp.filter(e=>e.aggregate===null);
+  const sorted = [...withA, ...noA];
+
+  body.innerHTML = sorted.map((e, rank) => {
+    const pos = rank+1;
+    const rc = pos===1?'rank-1':pos===2?'rank-2':'';
+    const pc = pos===1?'pos-1':pos===2?'pos-2':'';
+    const ac = pos===1?'agg agg-gold':pos===2?'agg agg-silver':'agg';
+    const unpaidRow = !e.paid ? 'row-unpaid' : '';
+    const c4 = [...e.best4];
+    const chips = e.scored.map(s => {
+      if (s.pos===null) return `<span class="pc unk">${s.name.split(' ').pop()} ?</span>`;
+      const idx = c4.indexOf(s.pos);
+      const counted = idx > -1;
+      if (counted) c4.splice(idx,1);
+      if (s.pos===60) return `<span class="pc mc">${s.name.split(' ').pop()} MC</span>`;
+      return `<span class="pc ${counted?'ok':''}">${s.name.split(' ').pop()} ${s.pos}</span>`;
+    }).join('');
+    const unpaidFlag = !e.paid ? `<span class="unpaid-flag">unpaid</span>` : '';
+    return `<tr class="${[rc, unpaidRow].filter(Boolean).join(' ')}">
+      <td class="pos-cell ${pc}">${e.aggregate!==null?pos:'—'}</td>
+      <td class="name-cell"><div class="nm">${e.name}${unpaidFlag}</div><div class="tb-hint">TB: ${e.tb}</div></td>
+      <td class="r">${e.aggregate!==null?`<span class="${ac}">${e.aggregate}</span>`:`<span class="agg-pending">…</span>`}</td>
+      <td><div class="pchips">${chips}</div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// LIVE SCORE FETCH
+// ══════════════════════════════════════════════════════════════════
+async function fetchScores() {
+  if (!entries.length) return;
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Fetching…';
+  clearInterval(cdTimer);
+  document.getElementById('errNote').textContent = '';
+  const allPicks = [...new Set(entries.flatMap(e=>e.picks))];
+  const prompt = `Search for the current live leaderboard of The Masters 2026 golf tournament at Augusta National Golf Club.
+I need the current leaderboard POSITION NUMBER (not golf score) for these players: ${allPicks.join(', ')}
+
+Return ONLY valid JSON, no markdown, no backticks:
+{"round":"R1","players":[{"name":"Scottie Scheffler","position":1,"status":"active"},{"name":"Rory McIlroy","position":5,"status":"active"},{"name":"Tiger Woods","position":60,"status":"mc"}]}
+
+Rules:
+- position = integer leaderboard position (1 = leader, 2 = second, etc.)
+- status: "active" = still playing, "mc" = missed cut, "wd" = withdrawn
+- Missed cut or withdrawn = position 60
+- Include ALL players I listed; if not found use position 60 status mc
+- Only return players I listed above`;
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514', max_tokens: 2000,
+        tools: [{type:'web_search_20250305',name:'web_search'}],
+        messages: [{role:'user', content:prompt}]
+      })
+    });
+    const data = await resp.json();
+    const text = (data.content||[]).map(b=>b.type==='text'?b.text:'').join('');
+    const m = text.replace(/```json|```/g,'').match(/\{[\s\S]*\}/);
+    if (!m) throw new Error('No JSON returned');
+    const parsed = JSON.parse(m[0]);
+    playerPositions = {};
+    (parsed.players||[]).forEach(p => { playerPositions[p.name] = p.position; });
+    const now = new Date();
+    document.getElementById('lastUpdated').textContent =
+      `Updated ${now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'})} · ${parsed.round||'In progress'}`;
+    renderLeaderboard();
+    startCd();
+  } catch(err) {
+    document.getElementById('errNote').textContent = 'Could not fetch: ' + err.message;
+    renderLeaderboard();
+    startCd();
+  } finally {
+    btn.disabled = false; btn.innerHTML = '↻ Refresh scores';
+  }
+}
+
+function startCd() {
+  clearInterval(cdTimer); cdCount = 60;
+  cdTimer = setInterval(() => {
+    cdCount--;
+    const el = document.getElementById('countdown');
+    if (el) el.textContent = cdCount > 0 ? `Auto in ${cdCount}s` : '';
+    if (cdCount <= 0) fetchScores();
+  }, 1000);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════════
+buildPicks();
+renderEntries();
+</script>
+</body>
+</html>
