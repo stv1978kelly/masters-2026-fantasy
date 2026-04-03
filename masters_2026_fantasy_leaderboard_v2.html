@@ -461,27 +461,100 @@ const REVEAL_PASSWORD = 'ROGs25039160!!';
 // Tournament start — picks lock automatically after this
 const TOURNEY_START = new Date('2026-04-10T12:00:00Z'); // Thu 10 Apr 12:00 UTC (~8am ET)
 
-const FIELD_BASE = [
-  "Ludvig Åberg","Daniel Berger","Akshay Bhatia","Keegan Bradley","Michael Brennan",
-  "Jacob Bridgeman","Sam Burns","Ángel Cabrera","Brian Campbell","Patrick Cantlay",
-  "Wyndham Clark","Corey Conners","Fred Couples","Jason Day","Bryson DeChambeau",
-  "Nicolas Echavarria","Harris English","Ethan Fang","Matt Fitzpatrick","Tommy Fleetwood",
-  "Ryan Fox","Sergio Garcia","Ryan Gerard","Chris Gotterup","Max Greyserman",
-  "Ben Griffin","Harry Hall","Brian Harman","Tyrrell Hatton","Russell Henley",
-  "Jackson Herrington","Nicolai Højgaard","Rasmus Højgaard","Brandon Holtz","Max Homa",
-  "Viktor Hovland","Mason Howell","Sungjae Im","Casey Jarvis","Dustin Johnson",
-  "Zach Johnson","Naoyuki Kataoka","John Keefer","Si Woo Kim","Michael Kim",
-  "Kurt Kitayama","Brooks Koepka","Fifa Laopakdee","Min Woo Lee","Haotong Li",
-  "Shane Lowry","Robert MacIntyre","Hideki Matsuyama","Matt McCarty","Rory McIlroy",
-  "Tom McKibbin","Maverick McNealy","Phil Mickelson","Collin Morikawa",
-  "Rasmus Neergaard-Petersen","Alex Noren","Andrew Novak","Jose Maria Olazabal",
-  "Carlos Ortiz","Marco Penge","Aldrich Potgieter","Mateo Pulcini","Jon Rahm",
-  "Aaron Rai","Patrick Reed","Kristoffer Reitan","Davis Riley","Justin Rose",
-  "Xander Schauffele","Scottie Scheffler","Charl Schwartzel","Adam Scott","Vijay Singh",
-  "Cameron Smith","J.J. Spaun","Jordan Spieth","Sam Stevens","Sepp Straka",
-  "Nick Taylor","Justin Thomas","Sami Valimaki","Bubba Watson","Mike Weir",
-  "Danny Willett","Gary Woodland","Cameron Young"
-];
+// name -> flag emoji
+const FIELD_BASE = {
+  "Ludvig Åberg":               "🇸🇪",
+  "Daniel Berger":              "🇺🇸",
+  "Akshay Bhatia":              "🇺🇸",
+  "Keegan Bradley":             "🇺🇸",
+  "Michael Brennan":            "🇺🇸",
+  "Jacob Bridgeman":            "🇺🇸",
+  "Sam Burns":                  "🇺🇸",
+  "Ángel Cabrera":              "🇦🇷",
+  "Brian Campbell":             "🇺🇸",
+  "Patrick Cantlay":            "🇺🇸",
+  "Wyndham Clark":              "🇺🇸",
+  "Corey Conners":              "🇨🇦",
+  "Fred Couples":               "🇺🇸",
+  "Jason Day":                  "🇦🇺",
+  "Bryson DeChambeau":          "🇺🇸",
+  "Nicolas Echavarria":         "🇨🇴",
+  "Harris English":             "🇺🇸",
+  "Ethan Fang":                 "🇺🇸",
+  "Matt Fitzpatrick":           "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+  "Tommy Fleetwood":            "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+  "Ryan Fox":                   "🇳🇿",
+  "Sergio Garcia":              "🇪🇸",
+  "Ryan Gerard":                "🇺🇸",
+  "Chris Gotterup":             "🇺🇸",
+  "Max Greyserman":             "🇺🇸",
+  "Ben Griffin":                "🇺🇸",
+  "Harry Hall":                 "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+  "Brian Harman":               "🇺🇸",
+  "Tyrrell Hatton":             "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+  "Russell Henley":             "🇺🇸",
+  "Jackson Herrington":         "🇺🇸",
+  "Nicolai Højgaard":           "🇩🇰",
+  "Rasmus Højgaard":            "🇩🇰",
+  "Brandon Holtz":              "🇺🇸",
+  "Max Homa":                   "🇺🇸",
+  "Viktor Hovland":             "🇳🇴",
+  "Mason Howell":               "🇺🇸",
+  "Sungjae Im":                 "🇰🇷",
+  "Casey Jarvis":               "🇺🇸",
+  "Dustin Johnson":             "🇺🇸",
+  "Zach Johnson":               "🇺🇸",
+  "Naoyuki Kataoka":            "🇯🇵",
+  "John Keefer":                "🇺🇸",
+  "Si Woo Kim":                 "🇰🇷",
+  "Michael Kim":                "🇺🇸",
+  "Kurt Kitayama":              "🇺🇸",
+  "Brooks Koepka":              "🇺🇸",
+  "Fifa Laopakdee":             "🇹🇭",
+  "Min Woo Lee":                "🇦🇺",
+  "Haotong Li":                 "🇨🇳",
+  "Shane Lowry":                "🇮🇪",
+  "Robert MacIntyre":           "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
+  "Hideki Matsuyama":           "🇯🇵",
+  "Matt McCarty":               "🇺🇸",
+  "Rory McIlroy":               "🇬🇧",
+  "Tom McKibbin":               "🇬🇧",
+  "Maverick McNealy":           "🇺🇸",
+  "Phil Mickelson":             "🇺🇸",
+  "Collin Morikawa":            "🇺🇸",
+  "Rasmus Neergaard-Petersen":  "🇩🇰",
+  "Alex Noren":                 "🇸🇪",
+  "Andrew Novak":               "🇺🇸",
+  "Jose Maria Olazabal":        "🇪🇸",
+  "Carlos Ortiz":               "🇲🇽",
+  "Marco Penge":                "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+  "Aldrich Potgieter":          "🇿🇦",
+  "Mateo Pulcini":              "🇦🇷",
+  "Jon Rahm":                   "🇪🇸",
+  "Aaron Rai":                  "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+  "Patrick Reed":               "🇺🇸",
+  "Kristoffer Reitan":          "🇳🇴",
+  "Davis Riley":                "🇺🇸",
+  "Justin Rose":                "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+  "Xander Schauffele":          "🇺🇸",
+  "Scottie Scheffler":          "🇺🇸",
+  "Charl Schwartzel":           "🇿🇦",
+  "Adam Scott":                 "🇦🇺",
+  "Vijay Singh":                "🇫🇯",
+  "Cameron Smith":              "🇦🇺",
+  "J.J. Spaun":                 "🇺🇸",
+  "Jordan Spieth":              "🇺🇸",
+  "Sam Stevens":                "🇺🇸",
+  "Sepp Straka":                "🇦🇹",
+  "Nick Taylor":                "🇨🇦",
+  "Justin Thomas":              "🇺🇸",
+  "Sami Valimaki":              "🇫🇮",
+  "Bubba Watson":               "🇺🇸",
+  "Mike Weir":                  "🇨🇦",
+  "Danny Willett":              "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+  "Gary Woodland":              "🇺🇸",
+  "Cameron Young":              "🇺🇸"
+};
 
 // ══════════════════════════════════════════════════════════════════
 // STATE
@@ -498,11 +571,15 @@ let editingEntryId = null;
 const N = 5;
 
 function getField() {
-  return [...FIELD_BASE, ...customPlayers].sort((a,b)=>{
+  const names = [...Object.keys(FIELD_BASE), ...customPlayers];
+  return names.sort((a,b)=>{
     const sa=a.split(' ').pop().replace(/[^a-zA-Z]/g,'').toLowerCase();
     const sb=b.split(' ').pop().replace(/[^a-zA-Z]/g,'').toLowerCase();
     return sa.localeCompare(sb);
   });
+}
+function getFlag(name) {
+  return FIELD_BASE[name] || '';
 }
 
 function picksVisible() {
@@ -804,8 +881,9 @@ function populateDd(idx, filter) {
   const hits = getField().filter(p => !blocked.has(p) && (!f || p.toLowerCase().includes(fl)));
   let html = hits.map(p => {
     const hi = p===cur ? ' sel' : '';
+    const flag = getFlag(p);
     const label = f ? p.replace(new RegExp('('+f.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),'<strong>$1</strong>') : p;
-    return `<div class="ddi${hi}" data-n="${p.replace(/"/g,'&quot;')}" onmousedown="pickPlayer(${idx},this)">${label}</div>`;
+    return `<div class="ddi${hi}" data-n="${p.replace(/"/g,'&quot;')}" onmousedown="pickPlayer(${idx},this)"><span style="margin-right:6px">${flag}</span>${label}</div>`;
   }).join('');
   if (f && !getField().some(p => p.toLowerCase()===fl) && !blocked.has(f)) {
     html += `<div class="ddi add-custom" data-n="${f.replace(/"/g,'&quot;')}" onmousedown="addCustomAndPick(${idx},'${f.replace(/'/g,"\\'")}')">+ Add "${f}" as custom player</div>`;
@@ -819,7 +897,7 @@ function populateDd(idx, filter) {
 function addCustomAndPick(idx, name) {
   const trimmed = name.trim();
   if (!trimmed) return;
-  if (!FIELD_BASE.includes(trimmed) && !customPlayers.includes(trimmed)) {
+  if (!Object.keys(FIELD_BASE).includes(trimmed) && !customPlayers.includes(trimmed)) {
     customPlayers.push(trimmed);
     if (db) db.ref('meta/customPlayers').push(trimmed);
   }
@@ -949,7 +1027,7 @@ function renderEntries() {
   }
   el.innerHTML = entries.map((e,i)=>{
     const picks = visible
-      ? e.picks.map(p=>`<span class="pick-chip">${p}</span>`).join('')
+      ? e.picks.map(p=>`<span class="pick-chip">${getFlag(p)} ${p}</span>`).join('')
       : e.picks.map(()=>`<span class="pick-chip hidden-pick">hidden</span>`).join('');
     const canEdit = !picksRevealed && new Date() < TOURNEY_START;
     const editBtn = canEdit ? `<button class="btn btn-sm" onclick="openEditModal('${e._id}')">✏️ Edit</button>` : '';
