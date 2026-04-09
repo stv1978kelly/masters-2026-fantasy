@@ -1216,7 +1216,7 @@ Rules:
       body: JSON.stringify({ players: allPicks })
     });
 
-    if (!resp.ok) throw new Error(`Worker error ${resp.status}`);
+    // Worker always returns 200 — check for error in body instead
     const parsed = await resp.json();
 
     if (parsed.error) throw new Error(parsed.error);
