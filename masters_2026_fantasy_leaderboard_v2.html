@@ -1118,52 +1118,121 @@ function renderLeaderboard() {
 // ══════════════════════════════════════════════════════════════════
 // LIVE SCORE FETCH
 // ══════════════════════════════════════════════════════════════════
+// ── ESPN Masters 2026 — two URL formats to try (ESPN IDs can vary)
+// Primary: known Masters 2026 event ID from ESPN's API
+const ESPN_URLS = [
+  'https://site.web.api.espn.com/apis/site/v2/sports/golf/leaderboard?league=pga&event=401703504',
+  'https://site.api.espn.com/apis/site/v2/sports/golf/pga/leaderboard?tournamentId=401703504',
+  'https://site.web.api.espn.com/apis/site/v2/sports/golf/leaderboard?league=pga'
+];
+// CORS proxy — lets the browser call ESPN from GitHub Pages without CORS errors
+const PROXY = 'https://api.allorigins.win/get?url=';
+
+function normName(n) {
+  return n.toLowerCase().replace(/[^a-z\s]/g,'').replace(/\s+/g,' ').trim();
+}
+
+function matchEspnPlayer(espnName, ourPicks) {
+  const en = normName(espnName);
+  for (const pick of ourPicks) {
+    if (normName(pick) === en) return pick;
+  }
+  // Last name fallback
+  const eLast = en.split(' ').pop();
+  for (const pick of ourPicks) {
+    if (normName(pick).split(' ').pop() === eLast) return pick;
+  }
+  return null;
+}
+
+async function fetchESPN() {
+  // Try each URL until one works
+  for (const url of ESPN_URLS) {
+    try {
+      const resp = await fetch(PROXY + encodeURIComponent(url));
+      if (!resp.ok) continue;
+      const proxy = await resp.json();
+      const data = JSON.parse(proxy.contents);
+      // Check it has the Masters event
+      const events = data.events || [];
+      const masters = events.find(e =>
+        (e.name && e.name.toLowerCase().includes('master')) ||
+        (e.shortName && e.shortName.toLowerCase().includes('master')) ||
+        events.length === 1
+      ) || events[0];
+      if (masters) return masters;
+    } catch(e) { continue; }
+  }
+  throw new Error('ESPN data unavailable — all endpoints failed');
+}
+
 async function fetchScores() {
   if (!entries.length) return;
   const btn = document.getElementById('refreshBtn');
-  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Fetching…';
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Fetching…';
   clearInterval(cdTimer);
-  document.getElementById('errNote').textContent='';
-  const allPicks=[...new Set(entries.flatMap(e=>e.picks))];
-  const prompt=`Search for the current live leaderboard of The Masters 2026 golf tournament at Augusta National Golf Club.
-I need the current leaderboard POSITION NUMBER (not golf score) for these players: ${allPicks.join(', ')}
+  document.getElementById('errNote').textContent = '';
 
-Return ONLY valid JSON, no markdown, no backticks:
-{"round":"R1","players":[{"name":"Scottie Scheffler","position":1,"status":"active"},{"name":"Rory McIlroy","position":5,"status":"active"},{"name":"Tiger Woods","position":60,"status":"mc"}]}
+  const allPicks = [...new Set(entries.flatMap(e => e.picks))];
 
-Rules:
-- position = integer leaderboard position (1=leader, 2=second, etc.)
-- status: "active"=still playing, "mc"=missed cut, "wd"=withdrawn
-- Missed cut or withdrawn = position 60
-- Include ALL players I listed; if not found use position 60 status mc
-- Only return players I listed above`;
   try {
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',max_tokens:2000,
-        tools:[{type:'web_search_20250305',name:'web_search'}],
-        messages:[{role:'user',content:prompt}]
-      })
+    const event = await fetchESPN();
+
+    const competition = event.competitions && event.competitions[0];
+    if (!competition) throw new Error('No competition data from ESPN');
+
+    const competitors = competition.competitors || [];
+    const roundStatus = (event.status && event.status.type && event.status.type.description) || 'In progress';
+    const roundNum = (competition.status && competition.status.period) || '?';
+    const roundLabel = roundNum !== '?' ? `R${roundNum}` : 'In progress';
+
+    // Build position lookup from ESPN competitors
+    playerPositions = {};
+
+    competitors.forEach(c => {
+      const espnName = c.athlete && c.athlete.displayName;
+      if (!espnName) return;
+      const matched = matchEspnPlayer(espnName, allPicks);
+      if (!matched) return;
+
+      const statusName = (c.status && c.status.type && c.status.type.name) || '';
+      const isMC = statusName === 'STATUS_MISSED_CUT' ||
+                   statusName === 'STATUS_WITHDRAWN' ||
+                   statusName === 'STATUS_DQ' ||
+                   statusName === 'STATUS_CUT';
+
+      if (isMC) {
+        playerPositions[matched] = 60;
+        return;
+      }
+
+      // ESPN position: try multiple fields
+      let pos = null;
+      if (c.status && c.status.position && c.status.position.id) {
+        pos = parseInt(c.status.position.id);
+      }
+      if (!pos && c.sortOrder) pos = parseInt(c.sortOrder);
+      if (!pos && c.statistics) {
+        const posObj = c.statistics.find(s => s.name === 'rank' || s.abbreviation === 'RANK');
+        if (posObj) pos = parseInt(posObj.displayValue);
+      }
+      if (!pos) pos = 99;
+
+      playerPositions[matched] = pos;
     });
-    const data=await resp.json();
-    const text=(data.content||[]).map(b=>b.type==='text'?b.text:'').join('');
-    const m=text.replace(/```json|```/g,'').match(/\{[\s\S]*\}/);
-    if(!m) throw new Error('No JSON returned');
-    const parsed=JSON.parse(m[0]);
-    playerPositions={};
-    (parsed.players||[]).forEach(p=>{playerPositions[p.name]=p.position;});
-    const now=new Date();
-    document.getElementById('lastUpdated').textContent=
-      `Updated ${now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'})} · ${parsed.round||'In progress'}`;
+
+    const now = new Date();
+    document.getElementById('lastUpdated').textContent =
+      `Updated ${now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'})} · ${roundLabel} · ${roundStatus} · via ESPN`;
     renderLeaderboard();
     startCd();
+
   } catch(err) {
-    document.getElementById('errNote').textContent='Could not fetch: '+err.message;
+    document.getElementById('errNote').textContent = 'ESPN scores unavailable: ' + err.message;
     renderLeaderboard();
     startCd();
   } finally {
-    btn.disabled=false; btn.innerHTML='↻ Refresh scores';
+    btn.disabled = false; btn.innerHTML = '↻ Refresh scores';
   }
 }
 
