@@ -1200,24 +1200,17 @@ Rules:
 - Include ALL players listed. If not found use 60.
 - Keys must exactly match the player names I gave you.`;
 
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    // Call Cloudflare Worker — API key is stored safely there, never in GitHub
+    const resp = await fetch('https://masters-scores.steve-013.workers.dev', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': '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', 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        messages: [{ role: 'user', content: prompt }]
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ players: allPicks })
     });
 
-    if (!resp.ok) throw new Error(`API error ${resp.status}`);
-    const data = await resp.json();
-    const text = (data.content || []).map(b => b.type === 'text' ? b.text : '').join('');
-    const m = text.replace(/```json|```/g, '').match(/\{[\s\S]*\}/);
-    if (!m) throw new Error('No JSON in response');
-    const parsed = JSON.parse(m[0]);
+    if (!resp.ok) throw new Error(`Worker error ${resp.status}`);
+    const parsed = await resp.json();
 
+    if (parsed.error) throw new Error(parsed.error);
     if (!parsed.players) throw new Error('No players in response');
 
     // Write to Firebase so all devices update instantly
