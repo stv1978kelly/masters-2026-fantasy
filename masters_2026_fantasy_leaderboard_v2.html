@@ -640,6 +640,9 @@ function listenToData() {
   db.ref('meta/customPlayers').on('value', snap => {
     customPlayers = snap.val() ? Object.values(snap.val()) : [];
   });
+
+  // Listen for score updates pushed by admin tool
+  listenToScores();
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -1116,32 +1119,18 @@ function renderLeaderboard() {
 }
 
 // ══════════════════════════════════════════════════════════════════
-// LIVE SCORE FETCH
+// LIVE SCORE FETCH — reads from Firebase (scores pushed by admin)
 // ══════════════════════════════════════════════════════════════════
-// ── ESPN Masters 2026 — confirmed tournament ID from ESPN URL
-const ESPN_EVENT_ID = '401811941';
-const ESPN_URLS = [
-  `https://site.web.api.espn.com/apis/site/v2/sports/golf/leaderboard?league=pga&event=${ESPN_EVENT_ID}`,
-  `https://site.api.espn.com/apis/site/v2/sports/golf/pga/leaderboard?tournamentId=${ESPN_EVENT_ID}`,
-  `https://site.web.api.espn.com/apis/site/v2/sports/golf/leaderboard?league=pga`
-];
-// CORS proxies — tried in order until one works
-const PROXIES = [
-  'https://corsproxy.io/?url=',
-  'https://api.allorigins.win/get?url=',
-  'https://thingproxy.freeboard.io/fetch/'
-];
 
 function normName(n) {
   return n.toLowerCase().replace(/[^a-z\s]/g,'').replace(/\s+/g,' ').trim();
 }
 
-function matchEspnPlayer(espnName, ourPicks) {
+function matchPlayer(espnName, ourPicks) {
   const en = normName(espnName);
   for (const pick of ourPicks) {
     if (normName(pick) === en) return pick;
   }
-  // Last name fallback
   const eLast = en.split(' ').pop();
   for (const pick of ourPicks) {
     if (normName(pick).split(' ').pop() === eLast) return pick;
@@ -1149,113 +1138,144 @@ function matchEspnPlayer(espnName, ourPicks) {
   return null;
 }
 
-async function fetchESPN() {
-  const errors = [];
-  for (const proxyBase of PROXIES) {
-    for (const espnUrl of ESPN_URLS) {
-      try {
-        const proxyUrl = proxyBase + encodeURIComponent(espnUrl);
-        const resp = await fetch(proxyUrl, {signal: AbortSignal.timeout(8000)});
-        if (!resp.ok) { errors.push(`${proxyBase} -> HTTP ${resp.status}`); continue; }
-        let data;
-        const text = await resp.text();
-        // allorigins wraps in {contents:'...'}, others return raw JSON
-        try {
-          const wrapper = JSON.parse(text);
-          data = wrapper.contents ? JSON.parse(wrapper.contents) : wrapper;
-        } catch(e) { errors.push('JSON parse error'); continue; }
-        // Find the Masters event in the response
-        const events = data.events || (data.competitions ? [data] : []);
-        const masters = events.find(e =>
-          (e.name && e.name.toLowerCase().includes('master')) ||
-          (e.shortName && e.shortName.toLowerCase().includes('master'))
-        ) || events[0];
-        if (masters && (masters.competitions || masters.competitors)) return masters;
-        errors.push('No Masters event in response');
-      } catch(e) { errors.push(e.message); continue; }
+// Listen for score updates pushed into Firebase by admin
+function listenToScores() {
+  if (!db) return;
+  db.ref('scores').on('value', snap => {
+    const val = snap.val();
+    if (!val) return;
+    // val = { players: {name: pos, ...}, round: 'R1', updatedAt: timestamp }
+    if (val.players) {
+      playerPositions = val.players;
+      const ts = val.updatedAt ? new Date(val.updatedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '—';
+      document.getElementById('lastUpdated').textContent =
+        `Updated ${ts} · ${val.round||''} · via live feed`;
+      document.getElementById('errNote').textContent = '';
+      renderLeaderboard();
     }
+  });
+}
+
+// ── Tournament schedule ───────────────────────────────────────────
+// R1 Thu 9 Apr, R2 Fri 10 Apr  → refresh every 30 mins
+// R3 Sat 11 Apr, R4 Sun 12 Apr → refresh every 15 mins
+const ROUND_SCHEDULE = [
+  { start: new Date('2026-04-09T12:00:00Z'), end: new Date('2026-04-11T00:00:00Z'), interval: 30 },
+  { start: new Date('2026-04-11T00:00:00Z'), end: new Date('2026-04-13T23:59:00Z'), interval: 15 }
+];
+
+function getRefreshInterval() {
+  const now = new Date();
+  for (const r of ROUND_SCHEDULE) {
+    if (now >= r.start && now < r.end) return r.interval * 60; // seconds
   }
-  throw new Error('All ESPN endpoints failed. Details: ' + errors.slice(0,3).join(' | '));
+  // Outside tournament hours — check every 30 mins anyway if tournament ongoing
+  const start = new Date('2026-04-09T12:00:00Z');
+  const end   = new Date('2026-04-13T23:59:00Z');
+  if (now >= start && now < end) return 30 * 60;
+  return null; // not during tournament, don't auto-refresh
 }
 
 async function fetchScores() {
   if (!entries.length) return;
   const btn = document.getElementById('refreshBtn');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Fetching…';
-  clearInterval(cdTimer);
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Fetching…';
   document.getElementById('errNote').textContent = '';
 
   const allPicks = [...new Set(entries.flatMap(e => e.picks))];
 
   try {
-    const event = await fetchESPN();
+    if (!db) throw new Error('Firebase not connected');
 
-    const competition = event.competitions && event.competitions[0];
-    if (!competition) throw new Error('No competition data from ESPN');
+    // Ask Claude (via Anthropic API) to get live Masters positions and write to Firebase
+    const prompt = `Search for the current live leaderboard of The Masters 2026 golf tournament at Augusta National.
+Get the current leaderboard POSITION (integer, 1=leader) for each of these players: ${allPicks.join(', ')}
 
-    const competitors = competition.competitors || [];
-    const roundStatus = (event.status && event.status.type && event.status.type.description) || 'In progress';
-    const roundNum = (competition.status && competition.status.period) || '?';
-    const roundLabel = roundNum !== '?' ? `R${roundNum}` : 'In progress';
+Return ONLY valid JSON, no markdown:
+{"round":"R1","players":{"Scottie Scheffler":1,"Rory McIlroy":5,"Tommy Fleetwood":60}}
 
-    // Build position lookup from ESPN competitors
-    playerPositions = {};
+Rules:
+- Value = integer position (1=leader). Missed cut or withdrawn = 60.
+- Include ALL players listed. If not found use 60.
+- Keys must exactly match the player names I gave you.`;
 
-    competitors.forEach(c => {
-      const espnName = c.athlete && c.athlete.displayName;
-      if (!espnName) return;
-      const matched = matchEspnPlayer(espnName, allPicks);
-      if (!matched) return;
-
-      const statusName = (c.status && c.status.type && c.status.type.name) || '';
-      const isMC = statusName === 'STATUS_MISSED_CUT' ||
-                   statusName === 'STATUS_WITHDRAWN' ||
-                   statusName === 'STATUS_DQ' ||
-                   statusName === 'STATUS_CUT';
-
-      if (isMC) {
-        playerPositions[matched] = 60;
-        return;
-      }
-
-      // ESPN position: try multiple fields
-      let pos = null;
-      if (c.status && c.status.position && c.status.position.id) {
-        pos = parseInt(c.status.position.id);
-      }
-      if (!pos && c.sortOrder) pos = parseInt(c.sortOrder);
-      if (!pos && c.statistics) {
-        const posObj = c.statistics.find(s => s.name === 'rank' || s.abbreviation === 'RANK');
-        if (posObj) pos = parseInt(posObj.displayValue);
-      }
-      if (!pos) pos = 99;
-
-      playerPositions[matched] = pos;
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': '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', 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: prompt }]
+      })
     });
 
-    const now = new Date();
-    document.getElementById('lastUpdated').textContent =
-      `Updated ${now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'})} · ${roundLabel} · ${roundStatus} · via ESPN`;
-    renderLeaderboard();
-    startCd();
+    if (!resp.ok) throw new Error(`API error ${resp.status}`);
+    const data = await resp.json();
+    const text = (data.content || []).map(b => b.type === 'text' ? b.text : '').join('');
+    const m = text.replace(/```json|```/g, '').match(/\{[\s\S]*\}/);
+    if (!m) throw new Error('No JSON in response');
+    const parsed = JSON.parse(m[0]);
+
+    if (!parsed.players) throw new Error('No players in response');
+
+    // Write to Firebase so all devices update instantly
+    await db.ref('scores').set({
+      players: parsed.players,
+      round: parsed.round || '',
+      updatedAt: Date.now()
+    });
+
+    // Firebase listener will update the UI automatically
+    document.getElementById('errNote').textContent = '';
 
   } catch(err) {
-    document.getElementById('errNote').textContent = 'ESPN scores unavailable: ' + err.message;
-    renderLeaderboard();
-    startCd();
+    // API failed — fall back to reading whatever is already in Firebase
+    try {
+      const snap = await db.ref('scores').get();
+      const val = snap.val();
+      if (val && val.players) {
+        playerPositions = val.players;
+        const ts = val.updatedAt ? new Date(val.updatedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '—';
+        document.getElementById('lastUpdated').textContent =
+          `Last known ${ts} · ${val.round||''} (live update failed)`;
+        renderLeaderboard();
+      }
+    } catch(e2) {}
+    document.getElementById('errNote').textContent = 'Score update failed: ' + err.message;
   } finally {
-    btn.disabled = false; btn.innerHTML = '↻ Refresh scores';
+    btn.disabled = false;
+    btn.innerHTML = '↻ Refresh scores';
+    startCd();
   }
 }
 
-function startCd(){
-  clearInterval(cdTimer); cdCount=60;
-  cdTimer=setInterval(()=>{
+function startCd() {
+  clearInterval(cdTimer);
+  const interval = getRefreshInterval();
+  if (!interval) {
+    // Not during tournament — show nothing
+    const el = document.getElementById('countdown');
+    if (el) el.textContent = '';
+    return;
+  }
+  cdCount = interval;
+  const mins = Math.floor(interval / 60);
+  cdTimer = setInterval(() => {
     cdCount--;
-    const el=document.getElementById('countdown');
-    if(el) el.textContent=cdCount>0?`Auto in ${cdCount}s`:'';
-    if(cdCount<=0) fetchScores();
-  },1000);
+    const el = document.getElementById('countdown');
+    if (el) {
+      if (cdCount > 60) {
+        el.textContent = `Auto in ${Math.ceil(cdCount/60)}m`;
+      } else if (cdCount > 0) {
+        el.textContent = `Auto in ${cdCount}s`;
+      } else {
+        el.textContent = '';
+      }
+    }
+    if (cdCount <= 0) fetchScores();
+  }, 1000);
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -1267,6 +1287,17 @@ document.getElementById('configBanner').classList.add('hidden');
 initFirebase(FIREBASE_URL);
 buildPicks();
 renderEntries();
+
+// Auto-start score fetching if tournament is live
+(function() {
+  const now = new Date();
+  const start = new Date('2026-04-09T12:00:00Z');
+  const end   = new Date('2026-04-13T23:59:00Z');
+  if (now >= start && now < end) {
+    // Fetch immediately on load, then start countdown
+    setTimeout(fetchScores, 2000);
+  }
+})();
 </script>
 </body>
 </html>
