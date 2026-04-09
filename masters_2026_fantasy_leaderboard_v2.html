@@ -1052,11 +1052,7 @@ function renderEntries() {
 // ══════════════════════════════════════════════════════════════════
 function norm(n){return n.toLowerCase().replace(/[^a-z\s]/g,'').replace(/\s+/g,' ').trim();}
 function getPos(pick){
-  // Try safeKey lookup first (Firebase stores dots as underscores)
-  const sk=safeKey(pick);
-  if(playerPositions[sk]!==undefined) return playerPositions[sk];
   if(playerPositions[pick]!==undefined) return playerPositions[pick];
-  // Normalised fallback
   for(const[k,v]of Object.entries(playerPositions)) if(norm(k)===norm(pick)) return v;
   const ln=norm(pick).split(' ').pop();
   for(const[k,v]of Object.entries(playerPositions)) if(norm(k).split(' ').pop()===ln) return v;
@@ -1165,127 +1161,31 @@ function listenToScores() {
   });
 }
 
-// ── Tournament schedule ───────────────────────────────────────────
-// R1 Thu 9 Apr, R2 Fri 10 Apr  → refresh every 30 mins
-// R3 Sat 11 Apr, R4 Sun 12 Apr → refresh every 15 mins
-const ROUND_SCHEDULE = [
-  { start: new Date('2026-04-09T12:00:00Z'), end: new Date('2026-04-11T00:00:00Z'), interval: 30 },
-  { start: new Date('2026-04-11T00:00:00Z'), end: new Date('2026-04-13T23:59:00Z'), interval: 15 }
-];
-
-function getRefreshInterval() {
-  const now = new Date();
-  for (const r of ROUND_SCHEDULE) {
-    if (now >= r.start && now < r.end) return r.interval * 60; // seconds
-  }
-  // Outside tournament hours — check every 30 mins anyway if tournament ongoing
-  const start = new Date('2026-04-09T12:00:00Z');
-  const end   = new Date('2026-04-13T23:59:00Z');
-  if (now >= start && now < end) return 30 * 60;
-  return null; // not during tournament, don't auto-refresh
-}
-
+// ── Score loading ─────────────────────────────────────────────────
 async function fetchScores() {
-  if (!entries.length) return;
+  if (!db) return;
   const btn = document.getElementById('refreshBtn');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>Fetching…';
+  btn.innerHTML = '<span class="spinner"></span>Checking…';
   document.getElementById('errNote').textContent = '';
-
-  const allPicks = [...new Set(entries.flatMap(e => e.picks))];
-
   try {
-    if (!db) throw new Error('Firebase not connected');
-
-    // Ask Claude (via Anthropic API) to get live Masters positions and write to Firebase
-    const prompt = `Search for the current live leaderboard of The Masters 2026 golf tournament at Augusta National.
-Get the current leaderboard POSITION (integer, 1=leader) for each of these players: ${allPicks.join(', ')}
-
-Return ONLY valid JSON, no markdown:
-{"round":"R1","players":{"Scottie Scheffler":1,"Rory McIlroy":5,"Tommy Fleetwood":60}}
-
-Rules:
-- Value = integer position (1=leader). Missed cut or withdrawn = 60.
-- Include ALL players listed. If not found use 60.
-- Keys must exactly match the player names I gave you.`;
-
-    // Call Cloudflare Worker — API key is stored safely there, never in GitHub
-    const resp = await fetch('https://masters-scores.steve-013.workers.dev', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ players: allPicks })
-    });
-
-    // Worker always returns 200 — check for error in body instead
-    const parsed = await resp.json();
-
-    if (parsed.error) throw new Error(parsed.error);
-    if (!parsed.players) throw new Error('No players in response');
-
-    // Sanitise keys for Firebase — dots and special chars not allowed
-    const safePlayers = {};
-    Object.entries(parsed.players).forEach(([name, pos]) => {
-      const safeKey = name.replace(/[.#$\/\[\]]/g, '_');
-      safePlayers[safeKey] = pos;
-    });
-
-    // Write to Firebase so all devices update instantly
-    await db.ref('scores').set({
-      players: safePlayers,
-      round: parsed.round || '',
-      updatedAt: Date.now()
-    });
-
-    // Firebase listener will update the UI automatically
-    document.getElementById('errNote').textContent = '';
-
-  } catch(err) {
-    // API failed — fall back to reading whatever is already in Firebase
-    try {
-      const snap = await db.ref('scores').get();
-      const val = snap.val();
-      if (val && val.players) {
-        playerPositions = val.players;
-        const ts = val.updatedAt ? new Date(val.updatedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '—';
-        document.getElementById('lastUpdated').textContent =
-          `Last known ${ts} · ${val.round||''} (live update failed)`;
-        renderLeaderboard();
-      }
-    } catch(e2) {}
-    document.getElementById('errNote').textContent = 'Score update failed: ' + err.message;
+    const snap = await db.ref('meta/scores').get();
+    const val = snap.val();
+    if (val && val.players && val.players.length) {
+      applyScores(val);
+    } else {
+      document.getElementById('lastUpdated').textContent = 'Scores not yet available — updated automatically every 30 mins';
+    }
+  } catch(e) {
+    document.getElementById('errNote').textContent = 'Could not load: ' + e.message;
   } finally {
     btn.disabled = false;
     btn.innerHTML = '↻ Refresh scores';
-    startCd();
   }
 }
 
-function startCd() {
-  clearInterval(cdTimer);
-  const interval = getRefreshInterval();
-  if (!interval) {
-    // Not during tournament — show nothing
-    const el = document.getElementById('countdown');
-    if (el) el.textContent = '';
-    return;
-  }
-  cdCount = interval;
-  const mins = Math.floor(interval / 60);
-  cdTimer = setInterval(() => {
-    cdCount--;
-    const el = document.getElementById('countdown');
-    if (el) {
-      if (cdCount > 60) {
-        el.textContent = `Auto in ${Math.ceil(cdCount/60)}m`;
-      } else if (cdCount > 0) {
-        el.textContent = `Auto in ${cdCount}s`;
-      } else {
-        el.textContent = '';
-      }
-    }
-    if (cdCount <= 0) fetchScores();
-  }, 1000);
-}
+function startCd(){ clearInterval(cdTimer); }
+
 
 // ══════════════════════════════════════════════════════════════════
 // INIT
@@ -1297,16 +1197,8 @@ initFirebase(FIREBASE_URL);
 buildPicks();
 renderEntries();
 
-// Auto-start score fetching if tournament is live
-(function() {
-  const now = new Date();
-  const start = new Date('2026-04-09T12:00:00Z');
-  const end   = new Date('2026-04-13T23:59:00Z');
-  if (now >= start && now < end) {
-    // Fetch immediately on load, then start countdown
-    setTimeout(fetchScores, 2000);
-  }
-})();
+// Load scores on startup — Worker cron keeps them fresh automatically
+fetchScores();
 </script>
 </body>
 </html>
