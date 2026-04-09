@@ -1146,22 +1146,27 @@ function matchPlayer(espnName, ourPicks) {
 // Listen for score updates pushed into Firebase by admin
 function listenToScores() {
   if (!db) return;
-  db.ref('scores').on('value', snap => {
+  db.ref('meta/scores').on('value', snap => {
     const val = snap.val();
-    if (!val) return;
-    // val = { players: {name: pos, ...}, round: 'R1', updatedAt: timestamp }
-    if (val.players) {
-      playerPositions = val.players;
-      const ts = val.updatedAt ? new Date(val.updatedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '—';
-      document.getElementById('lastUpdated').textContent =
-        `Updated ${ts} · ${val.round||''} · via live feed`;
-      document.getElementById('errNote').textContent = '';
-      renderLeaderboard();
-    }
+    if (val && val.players && val.players.length) applyScores(val);
   });
 }
 
-// ── Score loading ─────────────────────────────────────────────────
+function applyScores(val) {
+  playerPositions = {};
+  (val.players || []).forEach(p => { playerPositions[p.name] = p.position; });
+  const roundMap = {R1:'Round 1',R2:'Round 2',R3:'Round 3',R4:'Round 4'};
+  const roundFull = roundMap[val.round] || val.round || '';
+  const updated = val.updatedAt ? new Date(val.updatedAt) : null;
+  const next = val.nextUpdateAt ? new Date(val.nextUpdateAt) : null;
+  const fmt = d => d ? d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '—';
+  document.getElementById('lastUpdated').textContent =
+    `Updated: ${fmt(updated)} · ${roundFull} · Next: ${fmt(next)}`;
+  document.getElementById('errNote').textContent = '';
+  renderLeaderboard();
+}
+
+// ── Score loading ──────────────────────────────────────────────────
 async function fetchScores() {
   if (!db) return;
   const btn = document.getElementById('refreshBtn');
@@ -1185,6 +1190,7 @@ async function fetchScores() {
 }
 
 function startCd(){ clearInterval(cdTimer); }
+
 
 
 // ══════════════════════════════════════════════════════════════════
