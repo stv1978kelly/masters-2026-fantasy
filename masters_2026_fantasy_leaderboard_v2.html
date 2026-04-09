@@ -1052,6 +1052,11 @@ function renderEntries() {
 // ══════════════════════════════════════════════════════════════════
 function norm(n){return n.toLowerCase().replace(/[^a-z\s]/g,'').replace(/\s+/g,' ').trim();}
 function getPos(pick){
+  // Try safeKey lookup first (Firebase stores dots as underscores)
+  const sk=safeKey(pick);
+  if(playerPositions[sk]!==undefined) return playerPositions[sk];
+  if(playerPositions[pick]!==undefined) return playerPositions[pick];
+  // Normalised fallback
   for(const[k,v]of Object.entries(playerPositions)) if(norm(k)===norm(pick)) return v;
   const ln=norm(pick).split(' ').pop();
   for(const[k,v]of Object.entries(playerPositions)) if(norm(k).split(' ').pop()===ln) return v;
@@ -1124,6 +1129,10 @@ function renderLeaderboard() {
 
 function normName(n) {
   return n.toLowerCase().replace(/[^a-z\s]/g,'').replace(/\s+/g,' ').trim();
+}
+
+function safeKey(name) {
+  return name.replace(/[.#$\/\[\]]/g, '_');
 }
 
 function matchPlayer(espnName, ourPicks) {
@@ -1213,9 +1222,16 @@ Rules:
     if (parsed.error) throw new Error(parsed.error);
     if (!parsed.players) throw new Error('No players in response');
 
+    // Sanitise keys for Firebase — dots and special chars not allowed
+    const safePlayers = {};
+    Object.entries(parsed.players).forEach(([name, pos]) => {
+      const safeKey = name.replace(/[.#$\/\[\]]/g, '_');
+      safePlayers[safeKey] = pos;
+    });
+
     // Write to Firebase so all devices update instantly
     await db.ref('scores').set({
-      players: parsed.players,
+      players: safePlayers,
       round: parsed.round || '',
       updatedAt: Date.now()
     });
