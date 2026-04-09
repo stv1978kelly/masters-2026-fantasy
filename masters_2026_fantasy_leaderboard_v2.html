@@ -329,7 +329,7 @@ td{padding:11px 14px;vertical-align:middle}
   <div class="header">
     <div>
       <div class="title">The <span>Masters</span> 2026</div>
-      <div class="subtitle">Augusta National Golf Club · April 10–13, 2026</div>
+      <div class="subtitle">Augusta National Golf Club · April 9–13, 2026</div>
       <div class="badge-row">
         <span class="badge badge-green">Best 4 of 5 picks</span>
         <span class="badge badge-gold">Lowest aggregate wins</span>
@@ -421,7 +421,7 @@ td{padding:11px 14px;vertical-align:middle}
     <div class="lb-topbar">
       <div>
         <div class="lb-live"><span class="live-dot"></span>Live — Masters Tournament</div>
-        <div class="last-updated" id="lastUpdated">Scores not yet fetched — click Refresh when tournament begins Thu 10 Apr</div>
+        <div class="last-updated" id="lastUpdated">Scores not yet fetched — click Refresh when tournament begins Thu 9 Apr</div>
         <div class="err-note" id="errNote"></div>
       </div>
       <div class="refresh-group">
@@ -459,7 +459,7 @@ td{padding:11px 14px;vertical-align:middle}
 const ADMIN_PIN       = '25039160';
 const REVEAL_PASSWORD = 'ROGs25039160!!';
 // Tournament start — picks lock automatically after this
-const TOURNEY_START = new Date('2026-04-10T12:00:00Z'); // Thu 10 Apr 12:00 UTC (~8am ET)
+const TOURNEY_START = new Date('2026-04-09T12:00:00Z'); // Thu 9 Apr // Thu 10 Apr 12:00 UTC (~8am ET)
 
 // name -> country code
 const FIELD_BASE = {
@@ -1118,15 +1118,19 @@ function renderLeaderboard() {
 // ══════════════════════════════════════════════════════════════════
 // LIVE SCORE FETCH
 // ══════════════════════════════════════════════════════════════════
-// ── ESPN Masters 2026 — two URL formats to try (ESPN IDs can vary)
-// Primary: known Masters 2026 event ID from ESPN's API
+// ── ESPN Masters 2026 — confirmed tournament ID from ESPN URL
+const ESPN_EVENT_ID = '401811941';
 const ESPN_URLS = [
-  'https://site.web.api.espn.com/apis/site/v2/sports/golf/leaderboard?league=pga&event=401703504',
-  'https://site.api.espn.com/apis/site/v2/sports/golf/pga/leaderboard?tournamentId=401703504',
-  'https://site.web.api.espn.com/apis/site/v2/sports/golf/leaderboard?league=pga'
+  `https://site.web.api.espn.com/apis/site/v2/sports/golf/leaderboard?league=pga&event=${ESPN_EVENT_ID}`,
+  `https://site.api.espn.com/apis/site/v2/sports/golf/pga/leaderboard?tournamentId=${ESPN_EVENT_ID}`,
+  `https://site.web.api.espn.com/apis/site/v2/sports/golf/leaderboard?league=pga`
 ];
-// CORS proxy — lets the browser call ESPN from GitHub Pages without CORS errors
-const PROXY = 'https://api.allorigins.win/get?url=';
+// CORS proxies — tried in order until one works
+const PROXIES = [
+  'https://corsproxy.io/?url=',
+  'https://api.allorigins.win/get?url=',
+  'https://thingproxy.freeboard.io/fetch/'
+];
 
 function normName(n) {
   return n.toLowerCase().replace(/[^a-z\s]/g,'').replace(/\s+/g,' ').trim();
@@ -1146,24 +1150,32 @@ function matchEspnPlayer(espnName, ourPicks) {
 }
 
 async function fetchESPN() {
-  // Try each URL until one works
-  for (const url of ESPN_URLS) {
-    try {
-      const resp = await fetch(PROXY + encodeURIComponent(url));
-      if (!resp.ok) continue;
-      const proxy = await resp.json();
-      const data = JSON.parse(proxy.contents);
-      // Check it has the Masters event
-      const events = data.events || [];
-      const masters = events.find(e =>
-        (e.name && e.name.toLowerCase().includes('master')) ||
-        (e.shortName && e.shortName.toLowerCase().includes('master')) ||
-        events.length === 1
-      ) || events[0];
-      if (masters) return masters;
-    } catch(e) { continue; }
+  const errors = [];
+  for (const proxyBase of PROXIES) {
+    for (const espnUrl of ESPN_URLS) {
+      try {
+        const proxyUrl = proxyBase + encodeURIComponent(espnUrl);
+        const resp = await fetch(proxyUrl, {signal: AbortSignal.timeout(8000)});
+        if (!resp.ok) { errors.push(`${proxyBase} -> HTTP ${resp.status}`); continue; }
+        let data;
+        const text = await resp.text();
+        // allorigins wraps in {contents:'...'}, others return raw JSON
+        try {
+          const wrapper = JSON.parse(text);
+          data = wrapper.contents ? JSON.parse(wrapper.contents) : wrapper;
+        } catch(e) { errors.push('JSON parse error'); continue; }
+        // Find the Masters event in the response
+        const events = data.events || (data.competitions ? [data] : []);
+        const masters = events.find(e =>
+          (e.name && e.name.toLowerCase().includes('master')) ||
+          (e.shortName && e.shortName.toLowerCase().includes('master'))
+        ) || events[0];
+        if (masters && (masters.competitions || masters.competitors)) return masters;
+        errors.push('No Masters event in response');
+      } catch(e) { errors.push(e.message); continue; }
+    }
   }
-  throw new Error('ESPN data unavailable — all endpoints failed');
+  throw new Error('All ESPN endpoints failed. Details: ' + errors.slice(0,3).join(' | '));
 }
 
 async function fetchScores() {
